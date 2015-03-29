@@ -4,10 +4,11 @@ var through = require('through2');
 var fs = require('fs');
 var path = require('path');
 var resolve = require('resolve');
+var browserify = require('browserify');
 
 module.exports = function (file, opts) {
     if (/\.json$/.test(file)) return through();
-    
+
     function resolver (p) {
         return resolve.sync(p, { basedir: path.dirname(file) });
     }
@@ -20,126 +21,148 @@ module.exports = function (file, opts) {
     if (opts.vars) Object.keys(opts.vars).forEach(function (key) {
         vars[key] = opts.vars[key];
     });
-    
-    var sm = staticModule(
-        {
-            fs: {
-                readFileSync: readFileSync,
-                readFile: readFile,
-                readdirSync: readdirSync,
-                readdir: readdir
-            }
-        },
-        { vars: vars, varModules: { path: path } }
-    );
+
+    var sm = staticModule({
+            meowserify: meowserify
+        },{
+            vars: vars,
+            varModules: { path: path }
+    });
     return sm;
-    
-    function readFile (file, enc, cb) {
-        if (typeof enc === 'function') {
-            cb = enc;
-            enc = null;
-        }
-        if (enc && typeof enc === 'object' && enc.encoding) {
-            enc = enc.encoding;
-        }
-        var isBuffer = false;
-        if (enc === null || enc === undefined) {
-            isBuffer = true;
-            enc = 'base64';
-        }
-        
-        var stream = through(write, end);
-        stream.push('process.nextTick(function(){(' + cb + ')(null,');
-        if (isBuffer) stream.push('Buffer(');
-        
-        var s = fs.createReadStream(file, { encoding: enc });
-        s.on('error', function (err) { sm.emit('error', err) });
-        return s.pipe(quote()).pipe(stream);
-        
-        function write (buf, enc, next) {
-            this.push(buf);
-            next();
-        }
-        function end (next) {
-            if (isBuffer) this.push(',"base64")');
-            this.push(')})');
-            this.push(null);
-            sm.emit('file', file);
-            next()
-        }
-    }
-    
-    function readFileSync (file, enc) {
-        var isBuffer = false;
-        if (enc === null || enc === undefined) {
-            isBuffer = true;
-            enc = 'base64';
-        }
-        if (enc && typeof enc === 'object' && enc.encoding) {
-            enc = enc.encoding;
-        }
-        var stream = fs.createReadStream(file,  { encoding: enc })
+
+    function meowserify (file) {
+
+        var b = browserify()
+        b.add(file)
+
+        // stream.on('finish', function(){
+        //     sm.emit('file', file);
+        // })
+
+        // return stream
+
+        var stream = b.bundle()
             .pipe(quote()).pipe(through(write, end))
-        ;
-        if (isBuffer) {
-            stream.push('Buffer(');
-        }
+
         return stream;
-        
+
         function write (buf, enc, next) {
             this.push(buf);
             next();
         }
         function end (next) {
-            if (isBuffer) this.push(',"base64")');
             this.push(null);
             sm.emit('file', file);
             next();
         }
     }
-    
-    function readdir(path, cb) {
-        var stream = through(write, end);
 
-        stream.push('process.nextTick(function(){(' + cb + ')(null,');
-        fs.readdir(path, function (err, src) {
-            if (err) {
-                stream.emit('error', err);
-                return;
-            }
-            stream.push(JSON.stringify(src));
-            stream.end(')})');
-        });
-        return stream;
+    // function readFile (file, enc, cb) {
+    //     if (typeof enc === 'function') {
+    //         cb = enc;
+    //         enc = null;
+    //     }
+    //     if (enc && typeof enc === 'object' && enc.encoding) {
+    //         enc = enc.encoding;
+    //     }
+    //     var isBuffer = false;
+    //     if (enc === null || enc === undefined) {
+    //         isBuffer = true;
+    //         enc = 'base64';
+    //     }
 
-        function write (buf, enc, next) {
-            this.push(buf);
-            next();
-        }
-        function end (next) {
-            this.push(null);
-            next();
-        }
-    }
+    //     var stream = through(write, end);
+    //     stream.push('process.nextTick(function(){(' + cb + ')(null,');
+    //     if (isBuffer) stream.push('Buffer(');
 
-    function readdirSync (path) {
-        var stream = through(write, end);
-        fs.readdir(path, function (err, src) {
-            if (err) {
-                stream.emit('error', err);
-                return;
-            }
-            stream.end(JSON.stringify(src));
-        });
-        return stream;
+    //     var s = fs.createReadStream(file, { encoding: enc });
+    //     s.on('error', function (err) { sm.emit('error', err) });
+    //     return s.pipe(quote()).pipe(stream);
 
-        function write (buf, enc, next) {
-            this.push(buf);
-            next();
-        }
-        function end (next) {
-            this.push(null);
-            next();
-        }
-    }
+    //     function write (buf, enc, next) {
+    //         this.push(buf);
+    //         next();
+    //     }
+    //     function end (next) {
+    //         if (isBuffer) this.push(',"base64")');
+    //         this.push(')})');
+    //         this.push(null);
+    //         sm.emit('file', file);
+    //         next()
+    //     }
+    // }
+
+    // function readFileSync (file, enc) {
+    //     var isBuffer = false;
+    //     if (enc === null || enc === undefined) {
+    //         isBuffer = true;
+    //         enc = 'base64';
+    //     }
+    //     if (enc && typeof enc === 'object' && enc.encoding) {
+    //         enc = enc.encoding;
+    //     }
+    //     var stream = fs.createReadStream(file,  { encoding: enc })
+    //         .pipe(quote()).pipe(through(write, end))
+    //     ;
+    //     if (isBuffer) {
+    //         stream.push('Buffer(');
+    //     }
+    //     return stream;
+
+    //     function write (buf, enc, next) {
+    //         this.push(buf);
+    //         next();
+    //     }
+    //     function end (next) {
+    //         if (isBuffer) this.push(',"base64")');
+    //         this.push(null);
+    //         sm.emit('file', file);
+    //         next();
+    //     }
+    // }
+
+    // function readdir(path, cb) {
+    //     var stream = through(write, end);
+
+    //     stream.push('process.nextTick(function(){(' + cb + ')(null,');
+    //     fs.readdir(path, function (err, src) {
+    //         if (err) {
+    //             stream.emit('error', err);
+    //             return;
+    //         }
+    //         stream.push(JSON.stringify(src));
+    //         stream.end(')})');
+    //     });
+    //     return stream;
+
+    //     function write (buf, enc, next) {
+    //         this.push(buf);
+    //         next();
+    //     }
+    //     function end (next) {
+    //         this.push(null);
+    //         next();
+    //     }
+    // }
+
+    // function readdirSync (path) {
+    //     var stream = through(write, end);
+    //     fs.readdir(path, function (err, src) {
+    //         if (err) {
+    //             stream.emit('error', err);
+    //             return;
+    //         }
+    //         stream.end(JSON.stringify(src));
+    //     });
+    //     return stream;
+
+    //     function write (buf, enc, next) {
+    //         this.push(buf);
+    //         next();
+    //     }
+    //     function end (next) {
+    //         this.push(null);
+    //         next();
+    //     }
+    // }
 };
