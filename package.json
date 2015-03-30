@@ -20,9 +20,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/kumavis/brfs.git"
+    "url": "git://github.com/kumavis/meowserify.git"
   },
-  "homepage": "https://github.com/kumavis/brfs",
+  "homepage": "https://github.com/kumavis/meowserify",
   "keywords": [
     "browserify",
     "browserify-transform",
