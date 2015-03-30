@@ -1,6 +1,6 @@
 {
   "name": "meowserify",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "meowserify puts browserify bundles in your browserify bundles",
   "main": "index.js",
   "dependencies": {
