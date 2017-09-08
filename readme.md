@@ -1,5 +1,7 @@
 # meowserify
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/kumavis/meowserify.svg)](https://greenkeeper.io/)
+
 Need a browserify bundle in your browserify bundle?
 Useful for webworkers, iframes.
 
